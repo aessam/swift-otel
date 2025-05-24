@@ -12,12 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 import NIOHPACK
+import NIOSSL
 import OTel
 
 /// Configuration of an ``OTLPGRPCSpanExporter``.
 public struct OTLPGRPCSpanExporterConfiguration: Sendable {
     let endpoint: OTLPGRPCEndpoint
     let headers: HPACKHeaders
+    let trustRoots: NIOSSLTrustRoots
 
     /// Create a configuration for an ``OTLPGRPCSpanExporter``.
     ///
@@ -66,5 +68,17 @@ public struct OTLPGRPCSpanExporterConfiguration: Sendable {
                 return HPACKHeaders(keyValuePairs)
             }
         ) ?? [:]
+
+        let certificatePath = try environment.value(
+            programmaticOverride: nil as String?,
+            signalSpecificKey: "OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE",
+            sharedKey: "OTEL_EXPORTER_OTLP_CERTIFICATE",
+            transformValue: { $0 }
+        )
+        if let certificatePath {
+            self.trustRoots = .file(certificatePath)
+        } else {
+            self.trustRoots = .default
+        }
     }
 }
