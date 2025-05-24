@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import NIOHPACK
 import OTel
 
@@ -18,6 +19,15 @@ import OTel
 public struct OTLPGRPCSpanExporterConfiguration: Sendable {
     let endpoint: OTLPGRPCEndpoint
     let headers: HPACKHeaders
+    
+    /// Certificate data for server authentication
+    let certificate: Data?
+    
+    /// Client certificate data for client authentication
+    let clientCertificate: Data?
+    
+    /// Client key data for client authentication
+    let clientKey: Data?
 
     /// Create a configuration for an ``OTLPGRPCSpanExporter``.
     ///
@@ -26,11 +36,17 @@ public struct OTLPGRPCSpanExporterConfiguration: Sendable {
     ///   - endpoint: An optional endpoint string that takes precedence over any environment values. Defaults to `localhost:4317` if `nil`.
     ///   - shouldUseAnInsecureConnection: Whether to use an insecure connection in the absence of a scheme inside an endpoint configuration value.
     ///   - headers: Optional headers that take precedence over any headers configured via environment values.
+    ///   - certificate: Optional certificate data for verifying server. Takes precedence over environment variable.
+    ///   - clientCertificate: Optional client certificate data for client authentication. Takes precedence over environment variable.
+    ///   - clientKey: Optional client key data for client authentication. Takes precedence over environment variable.
     public init(
         environment: OTelEnvironment,
         endpoint: String? = nil,
         shouldUseAnInsecureConnection: Bool? = nil,
-        headers: HPACKHeaders? = nil
+        headers: HPACKHeaders? = nil,
+        certificate: Data? = nil,
+        clientCertificate: Data? = nil,
+        clientKey: Data? = nil
     ) throws {
         let shouldUseAnInsecureConnection = try environment.value(
             programmaticOverride: shouldUseAnInsecureConnection,
@@ -66,5 +82,36 @@ public struct OTLPGRPCSpanExporterConfiguration: Sendable {
                 return HPACKHeaders(keyValuePairs)
             }
         ) ?? [:]
+        
+        // Load certificate data from environment variables
+        self.certificate = try environment.value(
+            programmaticOverride: certificate,
+            signalSpecificKey: "OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE",
+            sharedKey: "OTEL_EXPORTER_OTLP_CERTIFICATE",
+            transformValue: { path in
+                guard let fileData = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
+                return fileData
+            }
+        )
+        
+        self.clientCertificate = try environment.value(
+            programmaticOverride: clientCertificate,
+            signalSpecificKey: "OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE",
+            sharedKey: "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE",
+            transformValue: { path in
+                guard let fileData = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
+                return fileData
+            }
+        )
+        
+        self.clientKey = try environment.value(
+            programmaticOverride: clientKey,
+            signalSpecificKey: "OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY",
+            sharedKey: "OTEL_EXPORTER_OTLP_CLIENT_KEY",
+            transformValue: { path in
+                guard let fileData = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
+                return fileData
+            }
+        )
     }
 }

@@ -35,18 +35,20 @@ public final class OTLPGRPCSpanExporter: OTelSpanExporter {
     ///   - group: The NIO event loop group to run the exporter in.
     ///   - requestLogger: Logs info about the underlying gRPC requests. Defaults to disabled, i.e. not emitting any logs.
     ///   - backgroundActivityLogger: Logs info about the underlying gRPC connection. Defaults to disabled, i.e. not emitting any logs.
+    ///   - trustRoots: The trusted root certificates for verifying server certificates. Defaults to system CA certificates.
     public convenience init(
         configuration: OTLPGRPCSpanExporterConfiguration,
         group: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         requestLogger: Logger = ._otelDisabled,
-        backgroundActivityLogger: Logger = ._otelDisabled
+        backgroundActivityLogger: Logger = ._otelDisabled,
+        trustRoots: NIOSSLTrustRoots = .default
     ) {
         self.init(
             configuration: configuration,
             group: group,
             requestLogger: requestLogger,
             backgroundActivityLogger: backgroundActivityLogger,
-            trustRoots: .default
+            trustRoots: trustRoots
         )
     }
 
@@ -72,13 +74,39 @@ public final class OTLPGRPCSpanExporter: OTelSpanExporter {
                 "host": "\(configuration.endpoint.host)",
                 "port": "\(configuration.endpoint.port)",
             ])
-            connection = ClientConnection
+            
+            var tlsConfiguration = ClientConnection
                 .usingPlatformAppropriateTLS(for: group)
-                .withTLS(trustRoots: trustRoots)
+
+            // Use custom certificate if provided
+            if let certificateData = configuration.certificate {
+                do {
+                    let certificate = try NIOSSLCertificate(bytes: [UInt8](certificateData), format: .pem)
+                    tlsConfiguration = tlsConfiguration.withTLS(trustRoots: .certificates([certificate]))
+                    logger.debug("Using custom certificate for server verification")
+                } catch {
+                    logger.error("Failed to load certificate: \(error)")
+                    tlsConfiguration = tlsConfiguration.withTLS(trustRoots: trustRoots)
+                }
+            } else {
+                tlsConfiguration = tlsConfiguration.withTLS(trustRoots: trustRoots)
+            }
+            
+            // Use client certificate and key if both are provided
+            if let clientCertificateData = configuration.clientCertificate,
+               let clientKeyData = configuration.clientKey {
+                do {
+                    let clientCertificate = try NIOSSLCertificate(bytes: [UInt8](clientCertificateData), format: .pem)
+                    let clientKey = try NIOSSLPrivateKey(bytes: [UInt8](clientKeyData), format: .pem)
+                    tlsConfiguration = tlsConfiguration.withTLS(certificateChain: [clientCertificate], privateKey: clientKey)
+                    logger.debug("Using client certificate and key for client authentication")
+                } catch {
+                    logger.error("Failed to load client certificate or key: \(error)")
+                }
+            }
+            
+            connection = tlsConfiguration
                 .withBackgroundActivityLogger(backgroundActivityLogger)
-                // TODO: Support OTEL_EXPORTER_OTLP_CERTIFICATE
-                // TODO: Support OTEL_EXPORTER_OTLP_CLIENT_KEY
-                // TODO: Support OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
                 .connect(host: configuration.endpoint.host, port: configuration.endpoint.port)
         }
 
