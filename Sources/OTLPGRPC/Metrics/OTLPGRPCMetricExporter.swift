@@ -26,28 +26,12 @@ public final class OTLPGRPCMetricExporter: OTelMetricExporter {
     private let client: Opentelemetry_Proto_Collector_Metrics_V1_MetricsServiceAsyncClient
     private let logger = Logger(label: String(describing: OTLPGRPCMetricExporter.self))
 
-    public convenience init(
+    public init(
         configuration: OTLPGRPCMetricExporterConfiguration,
         group: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         requestLogger: Logger = ._otelDisabled,
         backgroundActivityLogger: Logger = ._otelDisabled,
         trustRoots: NIOSSLTrustRoots = .default
-    ) {
-        self.init(
-            configuration: configuration,
-            group: group,
-            requestLogger: requestLogger,
-            backgroundActivityLogger: backgroundActivityLogger,
-            trustRoots: trustRoots
-        )
-    }
-
-    init(
-        configuration: OTLPGRPCMetricExporterConfiguration,
-        group: any EventLoopGroup,
-        requestLogger: Logger,
-        backgroundActivityLogger: Logger,
-        trustRoots: NIOSSLTrustRoots
     ) {
         self.configuration = configuration
 
@@ -88,7 +72,8 @@ public final class OTLPGRPCMetricExporter: OTelMetricExporter {
                 do {
                     let clientCertificate = try NIOSSLCertificate(bytes: [UInt8](clientCertificateData), format: .pem)
                     let clientKey = try NIOSSLPrivateKey(bytes: [UInt8](clientKeyData), format: .pem)
-                    tlsConfiguration = tlsConfiguration.withTLS(certificateChain: [clientCertificate], privateKey: clientKey)
+                    tlsConfiguration = tlsConfiguration.withTLS(certificateChain: [clientCertificate])
+                    tlsConfiguration = tlsConfiguration.withTLS(privateKey: clientKey)
                     logger.debug("Using client certificate and key for client authentication")
                 } catch {
                     logger.error("Failed to load client certificate or key: \(error)")

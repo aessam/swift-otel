@@ -36,28 +36,12 @@ public final class OTLPGRPCSpanExporter: OTelSpanExporter {
     ///   - requestLogger: Logs info about the underlying gRPC requests. Defaults to disabled, i.e. not emitting any logs.
     ///   - backgroundActivityLogger: Logs info about the underlying gRPC connection. Defaults to disabled, i.e. not emitting any logs.
     ///   - trustRoots: The trusted root certificates for verifying server certificates. Defaults to system CA certificates.
-    public convenience init(
+    public init(
         configuration: OTLPGRPCSpanExporterConfiguration,
         group: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
         requestLogger: Logger = ._otelDisabled,
         backgroundActivityLogger: Logger = ._otelDisabled,
         trustRoots: NIOSSLTrustRoots = .default
-    ) {
-        self.init(
-            configuration: configuration,
-            group: group,
-            requestLogger: requestLogger,
-            backgroundActivityLogger: backgroundActivityLogger,
-            trustRoots: trustRoots
-        )
-    }
-
-    init(
-        configuration: OTLPGRPCSpanExporterConfiguration,
-        group: any EventLoopGroup,
-        requestLogger: Logger,
-        backgroundActivityLogger: Logger,
-        trustRoots: NIOSSLTrustRoots
     ) {
         self.configuration = configuration
 
@@ -98,7 +82,8 @@ public final class OTLPGRPCSpanExporter: OTelSpanExporter {
                 do {
                     let clientCertificate = try NIOSSLCertificate(bytes: [UInt8](clientCertificateData), format: .pem)
                     let clientKey = try NIOSSLPrivateKey(bytes: [UInt8](clientKeyData), format: .pem)
-                    tlsConfiguration = tlsConfiguration.withTLS(certificateChain: [clientCertificate], privateKey: clientKey)
+                    tlsConfiguration = tlsConfiguration.withTLS(certificateChain: [clientCertificate])
+                    tlsConfiguration = tlsConfiguration.withTLS(privateKey: clientKey)
                     logger.debug("Using client certificate and key for client authentication")
                 } catch {
                     logger.error("Failed to load client certificate or key: \(error)")
