@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 import NIOHPACK
 import OTel
 @testable import OTLPGRPC
@@ -227,5 +228,99 @@ final class OTLPGRPCMetricExporterConfigurationTests: XCTestCase {
         )
 
         XCTAssertEqual(configuration.headers, ["test": "42"])
+    }
+    
+    // MARK: - certificates
+    
+    func test_init_withCertificateFile() throws {
+        // Setup a certificate file
+        let certPath = "/tmp/certs/test-cert.pem"
+        let certData = try Data(contentsOf: URL(fileURLWithPath: certPath))
+        
+        let env: OTelEnvironment = ["OTEL_EXPORTER_OTLP_CERTIFICATE": certPath]
+        let config = try OTLPGRPCMetricExporterConfiguration(environment: env)
+        
+        XCTAssertEqual(config.certificate, certData)
+        XCTAssertNil(config.clientCertificate)
+        XCTAssertNil(config.clientKey)
+    }
+    
+    func test_init_withMetricsSpecificCertificateFile() throws {
+        // Setup a certificate file
+        let certPath = "/tmp/certs/test-cert.pem"
+        let certData = try Data(contentsOf: URL(fileURLWithPath: certPath))
+        
+        let env: OTelEnvironment = ["OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE": certPath]
+        let config = try OTLPGRPCMetricExporterConfiguration(environment: env)
+        
+        XCTAssertEqual(config.certificate, certData)
+        XCTAssertNil(config.clientCertificate)
+        XCTAssertNil(config.clientKey)
+    }
+    
+    func test_init_withClientCertificateAndKey() throws {
+        // Setup client certificate and key files
+        let clientCertPath = "/tmp/certs/test-client-cert.pem"
+        let clientKeyPath = "/tmp/certs/test-client-key.pem"
+        let clientCertData = try Data(contentsOf: URL(fileURLWithPath: clientCertPath))
+        let clientKeyData = try Data(contentsOf: URL(fileURLWithPath: clientKeyPath))
+        
+        let env: OTelEnvironment = [
+            "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath,
+            "OTEL_EXPORTER_OTLP_CLIENT_KEY": clientKeyPath
+        ]
+        let config = try OTLPGRPCMetricExporterConfiguration(environment: env)
+        
+        XCTAssertNil(config.certificate)
+        XCTAssertEqual(config.clientCertificate, clientCertData)
+        XCTAssertEqual(config.clientKey, clientKeyData)
+    }
+    
+    func test_init_withMetricsSpecificClientCertificateAndKey() throws {
+        // Setup client certificate and key files
+        let clientCertPath = "/tmp/certs/test-client-cert.pem"
+        let clientKeyPath = "/tmp/certs/test-client-key.pem"
+        let clientCertData = try Data(contentsOf: URL(fileURLWithPath: clientCertPath))
+        let clientKeyData = try Data(contentsOf: URL(fileURLWithPath: clientKeyPath))
+        
+        let env: OTelEnvironment = [
+            "OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE": clientCertPath,
+            "OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY": clientKeyPath
+        ]
+        let config = try OTLPGRPCMetricExporterConfiguration(environment: env)
+        
+        XCTAssertNil(config.certificate)
+        XCTAssertEqual(config.clientCertificate, clientCertData)
+        XCTAssertEqual(config.clientKey, clientKeyData)
+    }
+    
+    func test_init_withProgrammaticCertificates_overridesEnvironment() throws {
+        // Setup certificate files
+        let certPath = "/tmp/certs/test-cert.pem"
+        let clientCertPath = "/tmp/certs/test-client-cert.pem"
+        let clientKeyPath = "/tmp/certs/test-client-key.pem"
+        
+        // Different test data to verify override
+        let certData = "test-cert-data".data(using: .utf8)!
+        let clientCertData = "test-client-cert-data".data(using: .utf8)!
+        let clientKeyData = "test-client-key-data".data(using: .utf8)!
+        
+        let env: OTelEnvironment = [
+            "OTEL_EXPORTER_OTLP_CERTIFICATE": certPath,
+            "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath,
+            "OTEL_EXPORTER_OTLP_CLIENT_KEY": clientKeyPath
+        ]
+        
+        let config = try OTLPGRPCMetricExporterConfiguration(
+            environment: env,
+            certificate: certData,
+            clientCertificate: clientCertData,
+            clientKey: clientKeyData
+        )
+        
+        // Verify programmatic values are used instead of environment values
+        XCTAssertEqual(config.certificate, certData)
+        XCTAssertEqual(config.clientCertificate, clientCertData)
+        XCTAssertEqual(config.clientKey, clientKeyData)
     }
 }
