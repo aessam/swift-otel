@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import NIOHPACK
+import NIOSSL
 import OTel
 
 /// Configuration for an ``OTLPGRPCMetricExporter``.
@@ -20,6 +21,7 @@ import OTel
 public struct OTLPGRPCMetricExporterConfiguration: Sendable {
     let endpoint: OTLPGRPCEndpoint
     let headers: HPACKHeaders
+    let trustRoots: NIOSSLTrustRoots
 
     /// Create a configuration for an ``OTLPGRPCMetricExporter``.
     ///
@@ -68,5 +70,17 @@ public struct OTLPGRPCMetricExporterConfiguration: Sendable {
                 return HPACKHeaders(keyValuePairs)
             }
         ) ?? [:]
+
+        let certificatePath = try environment.value(
+            programmaticOverride: nil as String?,
+            signalSpecificKey: "OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE",
+            sharedKey: "OTEL_EXPORTER_OTLP_CERTIFICATE",
+            transformValue: { $0 }
+        )
+        if let certificatePath {
+            self.trustRoots = .file(certificatePath)
+        } else {
+            self.trustRoots = .default
+        }
     }
 }

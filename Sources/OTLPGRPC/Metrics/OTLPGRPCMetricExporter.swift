@@ -37,11 +37,11 @@ public final class OTLPGRPCMetricExporter: OTelMetricExporter {
             group: group,
             requestLogger: requestLogger,
             backgroundActivityLogger: backgroundActivityLogger,
-            trustRoots: .default
+            trustRoots: configuration.trustRoots
         )
     }
 
-    init(
+    public init(
         configuration: OTLPGRPCMetricExporterConfiguration,
         group: any EventLoopGroup,
         requestLogger: Logger,

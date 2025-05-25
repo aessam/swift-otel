@@ -228,4 +228,22 @@ final class OTLPGRPCMetricExporterConfigurationTests: XCTestCase {
 
         XCTAssertEqual(configuration.headers, ["test": "42"])
     }
+
+    // MARK: - certificate
+
+    func test_init_certificate_specificEnvironment() throws {
+        let configuration = try OTLPGRPCMetricExporterConfiguration(
+            environment: ["OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE": "/tmp/cert.pem"]
+        )
+
+        XCTAssertEqual(configuration.trustRoots, .file("/tmp/cert.pem"))
+    }
+
+    func test_init_certificate_commonEnvironment() throws {
+        let configuration = try OTLPGRPCMetricExporterConfiguration(
+            environment: ["OTEL_EXPORTER_OTLP_CERTIFICATE": "/tmp/common.pem"]
+        )
+
+        XCTAssertEqual(configuration.trustRoots, .file("/tmp/common.pem"))
+    }
 }

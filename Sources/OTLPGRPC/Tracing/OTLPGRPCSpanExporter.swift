@@ -46,11 +46,11 @@ public final class OTLPGRPCSpanExporter: OTelSpanExporter {
             group: group,
             requestLogger: requestLogger,
             backgroundActivityLogger: backgroundActivityLogger,
-            trustRoots: .default
+            trustRoots: configuration.trustRoots
         )
     }
 
-    init(
+    public init(
         configuration: OTLPGRPCSpanExporterConfiguration,
         group: any EventLoopGroup,
         requestLogger: Logger,
